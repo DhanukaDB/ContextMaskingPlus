@@ -1,22 +1,27 @@
-{
- "nbformat": 4,
- "nbformat_minor": 5,
- "metadata": {
-  "kernelspec": {
-   "display_name": ".venv (3.12.9)",
-   "language": "python",
-   "name": "python3"
-  },
-  "language_info": {
-   "name": "python",
-   "version": "3.12.9"
-  }
- },
- "cells": [
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
+"""
+Generates Colab_Masking_Engine_Lab.ipynb with proper ML practices:
+- Stratified train/val/test split (60/20/20)
+- Cross-validation with epoch logging
+- Calibrated features that avoid data leakage
+- Visible epoch counts and accuracy per fold
+"""
+
+import json
+
+def cell(source, cell_type="code", outputs=None):
+    c = {"cell_type": cell_type, "metadata": {}, "source": source if isinstance(source, list) else [source]}
+    if cell_type == "code":
+        c["execution_count"] = None
+        c["outputs"] = outputs or []
+    return c
+
+def md(text):
+    return cell(text, "markdown")
+
+cells = []
+
+# ── Title ──────────────────────────────────────────────────────────────────────
+cells.append(md([
     "# 🛡️ Masking Engine Research & Evaluation Lab\n",
     "\n",
     "**Multi-layered PII / credential detection** using Regex, ML classifiers, CRF NER, and Transformers.\n",
@@ -27,36 +32,20 @@
     "> - Character-level & entropy features only — raw token text is **not** fed directly\n",
     "> - `max_features` capped + regularization to fight overfitting\n",
     "> - Final score reported on **held-out test set only**"
-   ]
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "## Section 1 — Dependencies"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "metadata": {},
-   "source": [
+]))
+
+# ── Section 1 — Dependencies ───────────────────────────────────────────────────
+cells.append(md("## Section 1 — Dependencies"))
+cells.append(cell(
     "%pip install -q trufflehog3 sklearn-crfsuite transformers seqeval plotly scikit-learn"
-   ],
-   "execution_count": null,
-   "outputs": []
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
+))
+
+# ── Section 2 — Data & EDA ─────────────────────────────────────────────────────
+cells.append(md([
     "## Section 2 — Data & EDA\n",
     "Load `synthetic_dataset.json`, map entities to broad categories, show class distribution."
-   ]
-  },
-  {
-   "cell_type": "code",
-   "metadata": {},
-   "source": [
+]))
+cells.append(cell([
     "import pandas as pd\n",
     "import plotly.express as px\n",
     "import json, os, re, math\n",
@@ -78,8 +67,12 @@
     "if os.path.exists(DATA_PATH):\n",
     "    df = pd.read_json(DATA_PATH)\n",
     "    print(f'Loaded {len(df)} records')\n",
+    "elif os.path.exists('masking_engine/' + DATA_PATH):\n",
+    "    DATA_PATH = 'masking_engine/' + DATA_PATH\n",
+    "    df = pd.read_json(DATA_PATH)\n",
+    "    print(f'Loaded {len(df)} records')\n",
     "else:\n",
-    "    raise FileNotFoundError(f'{DATA_PATH} not found. Run from masking_engine/ directory.')\n",
+    "    raise FileNotFoundError(f'{DATA_PATH} not found. Ensure you are in the correct directory.')\n",
     "\n",
     "df['broad_categories'] = df['entities'].apply(\n",
     "    lambda ents: list(set(category_map.get(e, 'Other') for e in ents))\n",
@@ -98,25 +91,17 @@
     "fig = px.bar(ec, x='Entity', y='Count', title='Entity Distribution', color='Count',\n",
     "             color_continuous_scale='Viridis')\n",
     "fig.show()"
-   ],
-   "execution_count": null,
-   "outputs": []
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
+]))
+
+# ── Section 3 — Feature Engineering (no raw text leakage) ─────────────────────
+cells.append(md([
     "## Section 3 — Feature Engineering\n",
     "\n",
     "**Key anti-leakage rule:** We do NOT feed raw prompt tokens as TF-IDF features.\n",
     "TF-IDF on synthetic data memorises token patterns (e.g. `AKIA...`, `sk-...`) giving 100% accuracy.\n",
     "Instead we use **structural / statistical signals** only."
-   ]
-  },
-  {
-   "cell_type": "code",
-   "metadata": {},
-   "source": [
+]))
+cells.append(cell([
     "import numpy as np\n",
     "\n",
     "def shannon_entropy(text: str) -> float:\n",
@@ -156,25 +141,17 @@
     "test_p = df[df['contains_sensitive']==1]['prompt'].iloc[0]\n",
     "print(' Prompt:', test_p[:80])\n",
     "print(' Features:', extract_features(test_p))"
-   ],
-   "execution_count": null,
-   "outputs": []
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
+]))
+
+# ── Section 4 — Stratified Split ──────────────────────────────────────────────
+cells.append(md([
     "## Section 4 — Stratified Train / Val / Test Split\n",
     "\n",
     "- **60%** train, **20%** validation, **20%** test\n",
     "- Stratified on `contains_sensitive` AND `type` to ensure edge/adversarial samples in every split\n",
     "- Test set is **locked away** until final evaluation"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "metadata": {},
-   "source": [
+]))
+cells.append(cell([
     "from sklearn.model_selection import train_test_split\n",
     "\n",
     "# Build feature matrix\n",
@@ -195,24 +172,16 @@
     "print(f'Train:      {len(X_train):>4} samples  sensitive={y_train.sum()} / non={len(y_train)-y_train.sum()}')\n",
     "print(f'Validation: {len(X_val):>4} samples  sensitive={y_val.sum()} / non={len(y_val)-y_val.sum()}')\n",
     "print(f'Test:       {len(X_test):>4} samples  sensitive={y_test.sum()} / non={len(y_test)-y_test.sum()}')"
-   ],
-   "execution_count": null,
-   "outputs": []
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
+]))
+
+# ── Section 5 — Classifier Comparison with CV ─────────────────────────────────
+cells.append(md([
     "## Section 5 — Classifier Comparison with Cross-Validation\n",
     "\n",
     "5-fold stratified CV on **training set only**. Per-fold accuracy is printed so you can see\n",
     "variance. Final hold-out test score is reported last."
-   ]
-  },
-  {
-   "cell_type": "code",
-   "metadata": {},
-   "source": [
+]))
+cells.append(cell([
     "from sklearn.linear_model import LogisticRegression\n",
     "from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier\n",
     "from sklearn.neural_network import MLPClassifier\n",
@@ -286,23 +255,15 @@
     "cv_df = pd.DataFrame(cv_results)\n",
     "print('\\n--- Summary Table ---')\n",
     "print(cv_df.to_string(index=False))"
-   ],
-   "execution_count": null,
-   "outputs": []
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
+]))
+
+# -- Section 6 — Final Test Evaluation -----------------------------------------
+cells.append(md([
     "## Section 6 — Final Evaluation on Held-Out Test Set\n",
     "\n",
     "Test set was **not touched** during training or hyperparameter selection."
-   ]
-  },
-  {
-   "cell_type": "code",
-   "metadata": {},
-   "source": [
+]))
+cells.append(cell([
     "from sklearn.metrics import classification_report, confusion_matrix\n",
     "import plotly.graph_objects as go\n",
     "\n",
@@ -334,41 +295,23 @@
     "fig_cv.update_layout(title='Classifier Comparison — CV Accuracy vs Val AUC',\n",
     "                      barmode='group', yaxis=dict(range=[0,1]))\n",
     "fig_cv.show()"
-   ],
-   "execution_count": null,
-   "outputs": []
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "## Section 7 — Save Best Model"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "metadata": {},
-   "source": [
+]))
+
+# ── Section 7 — Save best model ───────────────────────────────────────────────
+cells.append(md("## Section 7 — Save Best Model"))
+cells.append(cell([
     "import joblib\n",
     "joblib.dump(best_pipe, 'models_rf_classifier.pkl')\n",
     "print(f'Saved: models_rf_classifier.pkl  ({best_model_name})')"
-   ],
-   "execution_count": null,
-   "outputs": []
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
+]))
+
+# ── Section 8 — CRF NER ───────────────────────────────────────────────────────
+cells.append(md([
     "## Section 8 — Token-Level NER (CRF)\n",
     "\n",
     "CRF trained with proper IOB labels derived from entity positions, not random assignment."
-   ]
-  },
-  {
-   "cell_type": "code",
-   "metadata": {},
-   "source": [
+]))
+cells.append(cell([
     "import sklearn_crfsuite\n",
     "from sklearn_crfsuite import metrics as crf_metrics\n",
     "\n",
@@ -436,21 +379,11 @@
     "\n",
     "joblib.dump(crf, 'models_crf_ner.pkl')\n",
     "print('Saved: models_crf_ner.pkl')"
-   ],
-   "execution_count": null,
-   "outputs": []
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "## Section 9 — Masking Demo"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "metadata": {},
-   "source": [
+]))
+
+# ── Section 9 — Masking Demo ───────────────────────────────────────────────────
+cells.append(md("## Section 9 — Masking Demo"))
+cells.append(cell([
     "PATTERNS = [\n",
     "    (r'\\b4\\d{12}(?:\\d{3})?\\b',                            'PAN'),\n",
     "    (r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}',   'EMAIL'),\n",
@@ -482,21 +415,10 @@
     "    print('OUT:', mask_text(d))\n",
     "    print()\n",
     "pass\n"
-   ],
-   "execution_count": null,
-   "outputs": []
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
-    "## Section 10 — Usage Analytics Chart"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "metadata": {},
-   "source": [
+]))
+
+cells.append(md("## Section 10 — Usage Analytics Chart"))
+cells.append(cell([
     "import plotly.graph_objects as go\n",
     "\n",
     "# Simulated analytics based on test set evaluation\n",
@@ -506,14 +428,10 @@
     "fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.3)])\n",
     "fig.update_layout(title_text='Masking Engine Usage (Simulated over 1000 prompts)')\n",
     "fig.show()\n"
-   ],
-   "execution_count": null,
-   "outputs": []
-  },
-  {
-   "cell_type": "markdown",
-   "metadata": {},
-   "source": [
+]))
+
+# ── Kernel setup note ──────────────────────────────────────────────────────────
+cells.append(md([
     "---\n",
     "## ⚙️ Kernel Selection Instructions\n",
     "\n",
@@ -534,7 +452,27 @@
     "import sys; print(sys.executable)\n",
     "# Should print: d:\\Projects\\ContextMaskingPlus\\.venv\\Scripts\\python.exe\n",
     "```"
-   ]
-  }
- ]
+]))
+
+notebook = {
+    "nbformat": 4,
+    "nbformat_minor": 5,
+    "metadata": {
+        "kernelspec": {
+            "display_name": ".venv (3.12.9)",
+            "language": "python",
+            "name": "python3"
+        },
+        "language_info": {
+            "name": "python",
+            "version": "3.12.9"
+        }
+    },
+    "cells": cells
 }
+
+out_path = "Colab_Masking_Engine_Lab.ipynb"
+with open(out_path, "w", encoding="utf-8") as f:
+    json.dump(notebook, f, indent=1, ensure_ascii=False)
+
+print(f"Written: {out_path}  ({len(cells)} cells)")
