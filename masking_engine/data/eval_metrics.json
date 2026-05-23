@@ -1,0 +1,251 @@
+{
+  "overall": {
+    "precision": 0.39314516129032256,
+    "recall": 0.5416666666666666,
+    "f1": 0.45560747663551393,
+    "tp": 195,
+    "fp": 301,
+    "fn": 165
+  },
+  "per_entity_type": {
+    "API_KEY_GENERIC": {
+      "tp": 15,
+      "fp": 93,
+      "fn": 0,
+      "precision": 0.1388888888888889,
+      "recall": 1.0,
+      "f1": 0.24390243902439027
+    },
+    "API_KEY_OPENAI": {
+      "tp": 0,
+      "fp": 25,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "AWS_ACCESS_KEY": {
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "AWS_SECRET_KEY": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 5,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "BANK_ACCOUNT_NO": {
+      "tp": 0,
+      "fp": 30,
+      "fn": 20,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "BASE64_ENCODED_SECRET": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 10,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "CARD_EXPIRY": {
+      "tp": 0,
+      "fp": 15,
+      "fn": 0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "CVV": {
+      "tp": 15,
+      "fp": 64,
+      "fn": 0,
+      "precision": 0.189873417721519,
+      "recall": 1.0,
+      "f1": 0.3191489361702127
+    },
+    "DATE_OF_BIRTH": {
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "DB_CONNECTION_STRING": {
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "EMAIL": {
+      "tp": 20,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "EXPIRY": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 15,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "FULL_NAME": {
+      "tp": 30,
+      "fp": 10,
+      "fn": 0,
+      "precision": 0.75,
+      "recall": 1.0,
+      "f1": 0.8571428571428571
+    },
+    "HEX_ENCODED_SECRET": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 10,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "HOME_ADDRESS": {
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "IBAN": {
+      "tp": 15,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "INTERNAL_IP": {
+      "tp": 5,
+      "fp": 10,
+      "fn": 0,
+      "precision": 0.3333333333333333,
+      "recall": 1.0,
+      "f1": 0.5
+    },
+    "JWT_TOKEN": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 5,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "NIC_NEW": {
+      "tp": 0,
+      "fp": 35,
+      "fn": 25,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "NIC_OLD": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 25,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "OBFUSCATED_NIC": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 20,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "PAN": {
+      "tp": 15,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "PASSWORD": {
+      "tp": 0,
+      "fp": 10,
+      "fn": 20,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    },
+    "PHONE_LK": {
+      "tp": 10,
+      "fp": 9,
+      "fn": 0,
+      "precision": 0.5263157894736842,
+      "recall": 1.0,
+      "f1": 0.6896551724137931
+    },
+    "S3_BUCKET_REF": {
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "SWIFT_BIC": {
+      "tp": 15,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "SWIFT_MT103": {
+      "tp": 10,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "SWIFT_MT202": {
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "URL_ENCODED_SECRET": {
+      "tp": 0,
+      "fp": 0,
+      "fn": 10,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0
+    }
+  },
+  "adversarial_detection_rate": 60.0,
+  "edge_false_positive_rate": 20.0,
+  "action_distribution": {
+    "log_suspected": 306,
+    "mask_immediate": 269,
+    "mask_warn": 156
+  }
+}
