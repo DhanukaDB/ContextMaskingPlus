@@ -1,0 +1,251 @@
+{
+  "overall": {
+    "precision": 0.9119965906669508,
+    "recall": 0.9178640360283079,
+    "f1": 0.9149209063702436,
+    "tp": 4280,
+    "fp": 413,
+    "fn": 383
+  },
+  "per_entity_type": {
+    "API_KEY_GENERIC": {
+      "tp": 254,
+      "fp": 17,
+      "fn": 34,
+      "precision": 0.9372693726937269,
+      "recall": 0.8819444444444444,
+      "f1": 0.9087656529516995
+    },
+    "API_KEY_OPENAI": {
+      "tp": 73,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "AWS_ACCESS_KEY": {
+      "tp": 67,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "AWS_SECRET_KEY": {
+      "tp": 39,
+      "fp": 0,
+      "fn": 1,
+      "precision": 1.0,
+      "recall": 0.975,
+      "f1": 0.9873417721518987
+    },
+    "BANK_ACCOUNT_NO": {
+      "tp": 235,
+      "fp": 0,
+      "fn": 38,
+      "precision": 1.0,
+      "recall": 0.8608058608058609,
+      "f1": 0.9251968503937008
+    },
+    "CARD_EXPIRY": {
+      "tp": 67,
+      "fp": 26,
+      "fn": 0,
+      "precision": 0.7204301075268817,
+      "recall": 1.0,
+      "f1": 0.8375
+    },
+    "CVV": {
+      "tp": 59,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "DATE_OF_BIRTH": {
+      "tp": 136,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "DB_CONNECTION_STRING": {
+      "tp": 99,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "DRIVING_LICENSE": {
+      "tp": 50,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "EMAIL": {
+      "tp": 315,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "FULL_NAME": {
+      "tp": 160,
+      "fp": 0,
+      "fn": 144,
+      "precision": 1.0,
+      "recall": 0.5263157894736842,
+      "f1": 0.6896551724137931
+    },
+    "HOME_ADDRESS": {
+      "tp": 173,
+      "fp": 49,
+      "fn": 11,
+      "precision": 0.7792792792792793,
+      "recall": 0.9402173913043478,
+      "f1": 0.8522167487684729
+    },
+    "IBAN": {
+      "tp": 78,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "INTERNAL_IP": {
+      "tp": 226,
+      "fp": 66,
+      "fn": 0,
+      "precision": 0.773972602739726,
+      "recall": 1.0,
+      "f1": 0.8725868725868726
+    },
+    "JWT_IN_LOG": {
+      "tp": 16,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "JWT_TOKEN": {
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "NIC_NEW": {
+      "tp": 312,
+      "fp": 177,
+      "fn": 0,
+      "precision": 0.6380368098159509,
+      "recall": 1.0,
+      "f1": 0.7790262172284644
+    },
+    "NIC_OLD": {
+      "tp": 627,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "PAN": {
+      "tp": 186,
+      "fp": 14,
+      "fn": 3,
+      "precision": 0.93,
+      "recall": 0.9841269841269841,
+      "f1": 0.9562982005141387
+    },
+    "PASSPORT": {
+      "tp": 73,
+      "fp": 39,
+      "fn": 0,
+      "precision": 0.6517857142857143,
+      "recall": 1.0,
+      "f1": 0.7891891891891891
+    },
+    "PASSWORD": {
+      "tp": 217,
+      "fp": 0,
+      "fn": 150,
+      "precision": 1.0,
+      "recall": 0.5912806539509536,
+      "f1": 0.7431506849315068
+    },
+    "PHONE_INTL": {
+      "tp": 53,
+      "fp": 0,
+      "fn": 2,
+      "precision": 1.0,
+      "recall": 0.9636363636363636,
+      "f1": 0.9814814814814815
+    },
+    "PHONE_LK": {
+      "tp": 271,
+      "fp": 8,
+      "fn": 0,
+      "precision": 0.9713261648745519,
+      "recall": 1.0,
+      "f1": 0.9854545454545455
+    },
+    "S3_BUCKET_REF": {
+      "tp": 85,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "SWIFT_BIC": {
+      "tp": 170,
+      "fp": 17,
+      "fn": 0,
+      "precision": 0.9090909090909091,
+      "recall": 1.0,
+      "f1": 0.9523809523809523
+    },
+    "SWIFT_MT103": {
+      "tp": 96,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "SWIFT_MT202": {
+      "tp": 40,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "TAX_ID": {
+      "tp": 73,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  },
+  "adversarial_detection_rate": 96.39999999999999,
+  "edge_false_positive_rate": 0.0,
+  "action_distribution": {
+    "mask_immediate": 2551,
+    "mask_warn": 2077,
+    "log_suspected": 618
+  }
+}
