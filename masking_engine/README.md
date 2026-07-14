@@ -23,7 +23,13 @@ masking_engine/
 │   ├── token_registry.py         # Idempotent session token map
 │   └── instruction_generator.py  # Standard / CRITICAL instruction block output
 ├── tests/
-│   └── test_detector.py          # Regression tests (phone/CVV/PAN/JWT/etc. accuracy fixes)
+│   ├── test_detector.py          # Regression tests (phone/CVV/PAN/JWT/etc. accuracy fixes)
+│   └── test_web_api.py           # HTTP/JSON layer tests for web/server.py
+├── web/                            # Local browser demo — zero dependencies
+│   ├── server.py                 # http.server-based backend, exposes the real pipeline as JSON
+│   ├── index.html
+│   ├── style.css
+│   └── app.js
 ├── research/                      # Notebook-based ML research lab (separate from the
 │   │                               # production engine/ pipeline above; see its own deps)
 │   ├── Colab_Masking_Engine_Lab.ipynb
@@ -67,6 +73,15 @@ Then open `masking_engine/research/Colab_Masking_Engine_Lab.ipynb` and select th
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+## Web demo
+
+A local, browser-based interface for interactively testing the real detection pipeline — submit a prompt, see exactly which entities were detected, the regex/pattern responsible, the 4-factor confidence breakdown, and the masked output. No external dependencies.
+
+```bash
+python web/server.py
+```
+Opens `http://127.0.0.1:8765` in your browser automatically (or open it manually if it doesn't).
 
 ---
 

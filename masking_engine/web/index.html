@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R26-CS-012 — Masking Engine Demo</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h1>🛡️ Context-Aware Masking Engine</h1>
+  <p class="subtitle">R26-CS-012 — live demo of the real detection pipeline (regex + rule-based scoring, no simulation)</p>
+</header>
+
+<section class="explainer">
+  <details>
+    <summary>How the pipeline works</summary>
+    <ol class="pipeline-steps">
+      <li><strong>Normalize</strong> — URL/hex/Base64 decode, strip adversarial spacing (e.g. <code>1 9 9 0 1 2 3</code> → <code>1990123</code>), classify context type.</li>
+      <li><strong>Detect</strong> — compiled regex patterns + rule-based NER scan the normalized (and despaced) text for candidate entities.</li>
+      <li><strong>Score</strong> — each candidate gets a 0–1 confidence score from 4 weighted factors: pattern match strength (40%), keyword proximity (30%), co-occurrence with other entities (20%), format validity (10%).</li>
+      <li><strong>Resolve overlaps</strong> — where two entity types could both explain the same text (e.g. a 12-digit number could be an NIC or an account number), the higher-scoring candidate wins.</li>
+      <li><strong>Mask</strong> — score decides the action: <code>mask_immediate</code> (≥0.75), <code>mask_warn</code> (≥0.50), <code>log_suspected</code> (≥0.25, not masked), <code>ignore</code> (&lt;0.25).</li>
+    </ol>
+  </details>
+  <details>
+    <summary>Taxonomy categories</summary>
+    <table class="taxonomy-table">
+      <tr><td>1</td><td>Personally Identifiable Information</td><td>NIC, passport, phone, email, name, DOB, address</td></tr>
+      <tr><td>2</td><td>Financial &amp; Payment Data</td><td>card number, CVV, expiry, bank account, IBAN, SWIFT</td></tr>
+      <tr><td>3</td><td>Credentials &amp; Auth Secrets</td><td>API keys, JWT, passwords, private keys</td></tr>
+      <tr><td>4</td><td>Configuration &amp; Infrastructure</td><td>DB connection strings, internal IPs</td></tr>
+      <tr><td>5</td><td>Banking-Specific Organizational Data</td><td>SWIFT MT103/MT202 messages</td></tr>
+      <tr><td>6</td><td>Contextual &amp; Implicit Sensitive Data</td><td>code comments, doc references</td></tr>
+      <tr><td>7</td><td>Cloud Infrastructure &amp; Encoded Secrets</td><td>AWS keys, S3 refs, Base64/hex-encoded secrets</td></tr>
+    </table>
+  </details>
+</section>
+
+<main>
+  <section class="input-section">
+    <label for="prompt-input">Enter a prompt to analyze:</label>
+    <textarea id="prompt-input" rows="4" placeholder="e.g. Card number 4111 1111 1111 1111, CVV 123, expiry 12/27"></textarea>
+    <div class="controls">
+      <button id="analyze-btn">Analyze</button>
+      <span id="status" class="status"></span>
+    </div>
+    <div class="demo-cases">
+      <span class="demo-label">Quick-fill:</span>
+      <div id="demo-buttons"></div>
+    </div>
+  </section>
+
+  <section id="results" class="results hidden">
+    <h2>Masked Output</h2>
+    <div class="masked-box">
+      <div id="risk-badge" class="risk-badge"></div>
+      <pre id="masked-text"></pre>
+    </div>
+
+    <div id="transformations-box" class="transformations hidden">
+      <strong>Normalization applied:</strong> <span id="transformations-text"></span>
+    </div>
+
+    <h2>Detected Entities</h2>
+    <div id="entities-list"></div>
+  </section>
+
+  <section id="error-banner" class="error-banner hidden"></section>
+</main>
+
+<script src="/app.js"></script>
+</body>
+</html>
