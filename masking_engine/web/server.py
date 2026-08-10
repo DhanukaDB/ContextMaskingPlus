@@ -56,7 +56,7 @@ def _matched_pattern_for(entity) -> str:
 
 def run_pipeline(text: str) -> dict:
     norm = normalize(text)
-    raw_entities = detect(norm["normalized"], norm["despaced"])
+    raw_entities = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
 
     # Attach the normalized text to each entity so _matched_pattern_for
     # can re-locate NER matches without threading an extra parameter

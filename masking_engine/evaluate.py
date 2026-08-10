@@ -80,7 +80,7 @@ def evaluate():
 
         # Run engine
         norm            = normalize(text)
-        raw_entities    = detect(norm["normalized"], norm["despaced"])
+        raw_entities    = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
         scored_entities = score_all(raw_entities, norm["normalized"])
         scored_entities = resolve_overlapping_entities(scored_entities)
         masked_result   = mask(norm["normalized"], scored_entities, registry)

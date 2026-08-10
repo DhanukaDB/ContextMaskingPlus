@@ -94,8 +94,14 @@ PATTERNS = [
     ("PRIVATE_KEY",     r'-----BEGIN (RSA |EC )?PRIVATE KEY-----', "CRITICAL", "3C", "exact"),
 
     # ── Category 4B: Database Connection Strings ─────────────────────
+    # Two DSN shapes: URI-style (postgresql://...) and ADO.NET/ODBC
+    # key=value style (Server=x;Database=y;User=z;Password=w;) — the
+    # latter is the standard SQL Server/ODBC connection-string format and
+    # has no protocol:// prefix at all, so it needs its own alternative.
     ("DB_CONNECTION_STRING",
-                        r'(?i)(postgresql|mysql|mongodb|redis|mssql)://[^\s]+', "HIGH", "4B", "exact"),
+                        r'(?i)(?:(?:postgresql|mysql|mongodb|redis|mssql)://[^\s]+'
+                        r'|(?:Server|Data Source)\s*=\s*[^;]+;(?:[^;]+;)*?(?:Password|Pwd)\s*=\s*[^;]+;?)',
+                        "HIGH", "4B", "exact"),
 
     # ── Category 4C: Internal Network ───────────────────────────────
     ("INTERNAL_IP",     r'\b(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\b',
@@ -167,6 +173,7 @@ BOOST_KEYWORDS = {
     "BANK_ACCOUNT_NO": ["account", "account number", "acc", "bank account"],
     "SWIFT_BIC"      : ["swift", "bic", "bank code"],
     "API_KEY_GENERIC": ["api_key", "api key", "apikey", "token", "secret", "key"],
+    "API_KEY_OPENAI" : ["api_key", "api key", "apikey", "token", "secret", "key"],
     "PASSWORD"       : ["password", "passwd", "pwd", "credentials"],
     "AWS_ACCESS_KEY" : ["aws", "access key", "iam"],
     "AWS_SECRET_KEY" : ["aws", "secret", "credentials"],
@@ -237,7 +244,11 @@ def _has_gating_keyword(entity_type: str, source_text: str, start: int, end: int
     return any(kw.lower() in ctx for kw in keywords)
 
 
-def detect(text: str, despaced_text: Optional[str] = None) -> List[DetectedEntity]:
+def detect(
+    text: str,
+    despaced_text: Optional[str] = None,
+    despaced_map: Optional[List[int]] = None,
+) -> List[DetectedEntity]:
     """
     Run all regex + NER patterns against text.
     Also runs against despaced_text for adversarial inputs.
@@ -246,6 +257,18 @@ def detect(text: str, despaced_text: Optional[str] = None) -> List[DetectedEntit
     Args:
         text         : normalized input text
         despaced_text: version with adversarial spacing removed (from normalizer)
+        despaced_map : despaced-index -> text-index mapping (normalize()'s
+                       "despaced_map") — despaced_text is shorter than text
+                       whenever anything was removed, so a match's raw
+                       start()/end() in despaced_text are NOT valid offsets
+                       into `text`. Without this, entities found in the
+                       despaced pass get positions that, when later used to
+                       slice `text` for masking, land on the wrong
+                       characters — corrupting the mask and leaking part of
+                       the original value in plaintext. When omitted, raw
+                       despaced-text offsets are used as-is (matches prior
+                       behavior, only safe if despaced_text is same length
+                       as text i.e. nothing was actually removed).
     """
     entities: List[DetectedEntity] = []
     seen_spans: dict = {}   # span -> set of entity_types already registered there
@@ -261,11 +284,10 @@ def detect(text: str, despaced_text: Optional[str] = None) -> List[DetectedEntit
         COMPILED_PATTERNS, key=lambda p: p[0] not in CONTAINER_TYPES
     )
 
-    def _run_patterns(source_text: str, offset: int = 0):
+    def _run_patterns(source_text: str, translate=lambda s, e: (s, e)):
         for entity_type, compiled, sensitivity, category, match_quality in _ordered_patterns:
             for match in compiled.finditer(source_text):
-                start = match.start() + offset
-                end   = match.end()   + offset
+                start, end = translate(match.start(), match.end())
                 span  = (start, end)
 
                 if entity_type in CONTAINER_TYPES:
@@ -312,7 +334,12 @@ def detect(text: str, despaced_text: Optional[str] = None) -> List[DetectedEntit
 
     # Also run on despaced version if provided (adversarial detection)
     if despaced_text and despaced_text != text:
-        _run_patterns(despaced_text)
+        if despaced_map is not None:
+            def _to_normalized_span(s: int, e: int) -> tuple:
+                return despaced_map[s], despaced_map[e - 1] + 1
+            _run_patterns(despaced_text, _to_normalized_span)
+        else:
+            _run_patterns(despaced_text)
 
     # Run NER patterns
     for entity_type, patterns in COMPILED_NER.items():

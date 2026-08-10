@@ -244,8 +244,8 @@
   "adversarial_detection_rate": 96.39999999999999,
   "edge_false_positive_rate": 0.0,
   "action_distribution": {
-    "mask_immediate": 2551,
-    "mask_warn": 2077,
-    "log_suspected": 618
+    "mask_immediate": 2797,
+    "mask_warn": 1875,
+    "log_suspected": 439
   }
 }

@@ -56,7 +56,7 @@ def process_prompt(text: str, registry: TokenRegistry, verbose: bool = True) -> 
     norm = normalize(text)
 
     # Step 2 — Detect
-    raw_entities = detect(norm["normalized"], norm["despaced"])
+    raw_entities = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
 
     # Step 3 — Score
     scored_entities = score_all(raw_entities, norm["normalized"])

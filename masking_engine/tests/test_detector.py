@@ -32,7 +32,7 @@ def run(text: str):
     """Full pipeline up to (but not including) masking; returns list of
     (entity_type, value, score, action) tuples sorted by start position."""
     norm = normalize(text)
-    raw = detect(norm["normalized"], norm["despaced"])
+    raw = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
     scored = resolve_overlapping_entities(score_all(raw, norm["normalized"]))
     return [(s.entity.entity_type, s.entity.value, s.score, s.action) for s in scored]
 
