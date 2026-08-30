@@ -2,7 +2,7 @@
 Dataset Generator — R26-CS-012
 Context-Aware Masking + Instruction Engine
 
-Generates 3500–4200 synthetic prompts (random count each run)
+Generates 5000–5500 synthetic prompts (random count each run)
 covering taxonomy categories 1–7 including adversarial and edge/ambiguity cases.
 
 Enhanced with:
@@ -225,8 +225,12 @@ def rand_api_key():
     return f"{prefix}{''.join(random.choices(chars, k=length))}"
 
 def rand_api_key_openai():
+    # Real OpenAI keys run ~48-56 chars after "sk-"; the detector demotes
+    # anything shorter to API_KEY_GENERIC rather than over-claiming the
+    # vendor (fixes v.xlsx #5) — this generator must match that threshold
+    # or its own ground truth becomes unmatchable.
     chars  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    length = random.randint(28, 40)
+    length = random.randint(48, 56)
     return f"sk-{''.join(random.choices(chars, k=length))}"
 
 def rand_password():
@@ -292,6 +296,18 @@ def rand_loan_ref():
 
 def rand_account_type():
     return random.choice(["savings", "current", "fixed deposit", "overdraft", "loan"])
+
+def rand_business_ref(digits=12):
+    """A generic non-sensitive business reference number (transaction/
+    order/invoice/tracking id) — deliberately the SAME digit-shape as
+    NIC_NEW/BANK_ACCOUNT_NO/PHONE_LK so the templates below exercise the
+    context-qualifier suppression logic (fixes v.xlsx #1, #10, #11), not
+    just a differently-shaped number that would trivially not match."""
+    return "".join(str(random.randint(0, 9)) for _ in range(digits))
+
+def rand_jwt_secret():
+    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
+    return "".join(random.choices(chars, k=random.randint(24, 40)))
 
 
 # ─────────────────────────────────────────────
@@ -468,12 +484,28 @@ NORMAL_POOL = [
     ("3A-API", lambda: (f"Webhook secret is {rand_api_key()} — update in payment processor config.", ["API_KEY_GENERIC"])),
 
     # ── 3B Password ───────────────────────────────────────────────
-    ("3B-PASSWORD", lambda: (f"The login keeps failing with password {rand_password()} — did the policy change?", ["PASSWORD"])),
-    ("3B-PASSWORD", lambda: (f"Admin console password {rand_password()} needs to be updated — CBSL audit next week.", ["PASSWORD"])),
+    # Note: every template below uses an explicit "="/":" between the
+    # keyword and value on purpose — the detector's PASSWORD pattern
+    # requires one (per taxonomy 3B's own "keyword + separator + value"
+    # definition), matching how a real config/log line discloses a secret.
+    # A bare "password VALUE" with no separator at all is indistinguishable
+    # from ordinary sentences like "password reset failed" and isn't a
+    # realistic disclosure shape, so it's deliberately not a supported
+    # ground-truth case here.
+    ("3B-PASSWORD", lambda: (f"The login keeps failing with password: {rand_password()} — did the policy change?", ["PASSWORD"])),
+    ("3B-PASSWORD", lambda: (f"Admin console password: {rand_password()} needs to be updated — CBSL audit next week.", ["PASSWORD"])),
     ("3B-PASSWORD", lambda: (f"password={rand_password()} was committed to the repo — rotate immediately.", ["PASSWORD"])),
     ("3B-PASSWORD", lambda: (f"SSH login: user=admin password={rand_password()} to {rand_ip_internal()}.", ["PASSWORD", "INTERNAL_IP"])),
-    ("3B-PASSWORD", lambda: (f"DB password reset to {rand_password()} — update all service configs.", ["PASSWORD"])),
+    ("3B-PASSWORD", lambda: (f"DB password reset to: {rand_password()} — update all service configs.", ["PASSWORD"])),
     ("3B-PASSWORD", lambda: (f"VPN credentials: user=sysadmin pass={rand_password()} — update MFA too.", ["PASSWORD"])),
+
+    # ── 3B Secret Assignments (env + code style) — fixes v.xlsx #3/4/6/7 ──
+    ("3B-SECRET-ENV",  lambda: (f"The production configuration contains DB_PASSWORD={rand_password()}. Please identify the configuration issue.", ["PASSWORD"])),
+    ("3B-SECRET-ENV",  lambda: (f"The production configuration contains JWT_SECRET={rand_jwt_secret()}. Please identify the security issue.", ["PASSWORD"])),
+    ("3B-SECRET-ENV",  lambda: (f"CLIENT_SECRET={rand_jwt_secret()} was found in the deployment logs — rotate now.", ["PASSWORD"])),
+    ("3B-SECRET-CODE", lambda: (f"Please review this code: const password = '{rand_password()}'; const user = 'admin';", ["PASSWORD"])),
+    ("3B-SECRET-CODE", lambda: (f"Please review this code: const jwtSecret = '{rand_jwt_secret()}'; const user = 'admin';", ["PASSWORD"])),
+    ("3B-SECRET-CODE", lambda: (f"Code review flagged: let apiSecret = \"{rand_jwt_secret()}\"; — should not be hardcoded.", ["PASSWORD"])),
 
     # ── 4B DB Connections ─────────────────────────────────────────
     ("4B-DB", lambda: (f"The app can't connect: {rand_db_conn()} — is the firewall blocking the port?", ["DB_CONNECTION_STRING", "INTERNAL_IP"])),
@@ -546,6 +578,18 @@ EDGE_POOL = [
     ("EDGE-AMBIGUOUS-CTX", lambda: (f"Customer id is {rand_nic_new()} — update their record.", ["NIC_NEW"], "12-digit with 'customer id' keyword")),
     ("EDGE-AMBIGUOUS-CTX", lambda: (f"National identity {rand_nic_new()} — KYC pending.", ["NIC_NEW"], "12-digit with 'national identity'")),
     ("EDGE-AMBIGUOUS-CTX", lambda: (f"Verify ID number {rand_nic_new()} for this transaction.", ["NIC_NEW"], "12-digit with 'ID number'")),
+    ("EDGE-AMBIGUOUS-CTX", lambda: (f"Customer reference: {rand_nic_new()}", ["NIC_NEW"], "12-digit with 'customer reference' — taxonomy worked example")),
+
+    # Business reference numbers → should NOT mask even though the digit
+    # shape matches NIC_NEW/BANK_ACCOUNT_NO/PHONE_LK and a generic "id"/
+    # "number"/"reference" keyword sits right next to it (fixes v.xlsx
+    # #1, #10, #11 — panel review of PP1).
+    ("EDGE-BUSINESS-REF", lambda: (f"Please investigate transaction ID {rand_business_ref()} and identify why the banking transaction failed.", [], "transaction ID — should NOT mask as NIC")),
+    ("EDGE-BUSINESS-REF", lambda: (f"The invoice reference is {rand_phone_lk()}. Please locate the invoice and check its payment status.", [], "invoice reference, phone-shaped — should NOT mask as phone")),
+    ("EDGE-BUSINESS-REF", lambda: (f"The internal order reference is {rand_business_ref()}. Please check the status of this banking order.", [], "order reference — should NOT mask as NIC")),
+    ("EDGE-BUSINESS-REF", lambda: (f"Tracking reference {rand_business_ref()} raised for the document courier.", [], "tracking reference — should NOT mask")),
+    ("EDGE-BUSINESS-REF", lambda: (f"Support ticket number {rand_business_ref()} was opened for this complaint.", [], "ticket number — should NOT mask")),
+    ("EDGE-BUSINESS-REF", lambda: (f"Case ID {rand_business_ref()} assigned to the fraud investigation team.", [], "case ID — should NOT mask")),
 
     # Name alone → should NOT mask
     ("EDGE-NAME-ONLY",     lambda: (f"Can you summarise the loan policy for {rand_name()}?", [], "Name alone — should NOT mask")),
@@ -558,8 +602,8 @@ EDGE_POOL = [
     ("EDGE-CO-OCCUR",      lambda: (f"KYC: {rand_name()}, NIC {rand_nic_old()}, DOB {rand_dob()}, address {rand_address()}.", ["FULL_NAME", "NIC_OLD", "DATE_OF_BIRTH", "HOME_ADDRESS"], "Full identity bundle — CRITICAL")),
 
     # Email + Password → CRITICAL
-    ("EDGE-CO-OCCUR",      lambda: (f"Login failing: email {rand_email()} password {rand_password()} — what's wrong?", ["EMAIL", "PASSWORD"], "Email + Password — CRITICAL")),
-    ("EDGE-CO-OCCUR",      lambda: (f"User {rand_email()} reset password to {rand_password()} — confirm.", ["EMAIL", "PASSWORD"], "Email + Password — CRITICAL")),
+    ("EDGE-CO-OCCUR",      lambda: (f"Login failing: email {rand_email()} password: {rand_password()} — what's wrong?", ["EMAIL", "PASSWORD"], "Email + Password — CRITICAL")),
+    ("EDGE-CO-OCCUR",      lambda: (f"User {rand_email()} reset password to: {rand_password()} — confirm.", ["EMAIL", "PASSWORD"], "Email + Password — CRITICAL")),
 
     # Phone alone → partial mask
     ("EDGE-SINGLE-MED",    lambda: (f"Call {rand_phone_lk()} to confirm the appointment.", ["PHONE_LK"], "Phone alone — MEDIUM, partial mask")),
@@ -610,8 +654,8 @@ def make_prompts(pool, target, prompt_type):
 # ─────────────────────────────────────────────
 
 def generate():
-    # Random total between 3500–4200 (panel requirement: >3500, random each run)
-    total_target  = random.randint(3500, 4200)
+    # Random total between 5000–5500 (panel requirement, updated after PP1)
+    total_target  = random.randint(5000, 5500)
     normal_target = int(total_target * 0.60)
     adv_target    = int(total_target * 0.20)
     edge_target   = total_target - normal_target - adv_target

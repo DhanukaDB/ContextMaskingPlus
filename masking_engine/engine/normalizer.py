@@ -16,6 +16,7 @@ WHY THIS APPROACH:
 import re
 import base64
 import urllib.parse
+from typing import List, Tuple
 
 
 # ─────────────────────────────────────────────
@@ -143,7 +144,7 @@ def decode_hex_segments(text: str) -> str:
     return hex_pattern.sub(try_decode, text)
 
 
-_SHORT_TOKEN      = r'(?:[A-Za-z0-9]{1,2}|-)'
+_SHORT_TOKEN      = r'(?:[A-Za-z0-9]{1,2}|[@\-])'
 _ADVERSARIAL_RUN  = re.compile(
     rf'(?<![A-Za-z0-9]){_SHORT_TOKEN}(?:[ \t]{_SHORT_TOKEN}){{2,}}(?![A-Za-z0-9])'
 )
@@ -152,8 +153,33 @@ _ADVERSARIAL_RUN  = re.compile(
 def _looks_like_obfuscation_run(run_text: str) -> bool:
     """Require 2+ digits so ordinary short-word runs ('he is to go') are
     left alone — the adversarial threat model (Taxonomy 7C) is numeric
-    identifier obfuscation, not short English words."""
-    return sum(ch.isdigit() for ch in run_text) >= 2
+    identifier obfuscation, not short English words.
+
+    Also treat a run of 4+ single-character tokens as obfuscation even with
+    zero digits (e.g. 'P a s s w o r d') — a keyword spelled out letter by
+    letter to dodge the PASSWORD regex. This is distinct from ordinary short
+    *words* like 'he is to go', whose tokens are each a complete 2+ letter
+    word rather than a single spelled-out letter, so it doesn't collapse
+    legitimate sentences."""
+    if sum(ch.isdigit() for ch in run_text) >= 2:
+        return True
+    tokens = run_text.split()
+    return len(tokens) >= 4 and all(len(tok) == 1 for tok in tokens)
+
+
+def _drop_positions(text: str, positions: set) -> Tuple[str, List[int]]:
+    """Delete the given character indices from `text`. Returns the result
+    plus a mapping where mapping[i] is the index in `text` that produced
+    the character at result[i] — lets callers translate a span found in the
+    shortened result back to the original text's coordinates."""
+    result_chars: List[str] = []
+    mapping: List[int] = []
+    for i, ch in enumerate(text):
+        if i in positions:
+            continue
+        result_chars.append(ch)
+        mapping.append(i)
+    return "".join(result_chars), mapping
 
 
 def remove_adversarial_spacing(text: str) -> str:
@@ -172,14 +198,32 @@ def remove_adversarial_spacing(text: str) -> str:
     Kamal..." became "UpdatetheprofileforKamal...") that then falsely
     matched the API_KEY_GENERIC length regex.
     """
-    def maybe_despace(m: re.Match) -> str:
-        run = m.group(0)
-        return re.sub(r'[ \t]', '', run) if _looks_like_obfuscation_run(run) else run
+    return remove_adversarial_spacing_with_map(text)[0]
 
-    spaced = _ADVERSARIAL_RUN.sub(maybe_despace, text)
-    # Remove dashes between digit groups
-    dashed = re.sub(r'(\d)-(\d)', r'\1\2', spaced)
-    return dashed
+
+def remove_adversarial_spacing_with_map(text: str) -> Tuple[str, List[int]]:
+    """Same transformation as remove_adversarial_spacing(), but also
+    returns a despaced-index -> original-index mapping (see _drop_positions)
+    so a match found in the despaced text can be translated back to its
+    real span in `text` — needed because the despaced string is shorter
+    than `text` whenever anything was removed, so raw despaced-text offsets
+    are not valid offsets into `text`."""
+    remove_positions = set()
+    for m in _ADVERSARIAL_RUN.finditer(text):
+        if _looks_like_obfuscation_run(m.group(0)):
+            for i in range(m.start(), m.end()):
+                if text[i] in (' ', '\t'):
+                    remove_positions.add(i)
+    spaced, map1 = _drop_positions(text, remove_positions)
+
+    # Remove dashes between digit groups (same non-overlapping semantics as
+    # the original re.sub(r'(\d)-(\d)', r'\1\2', spaced) it replaces).
+    dash_positions = {m.start() + 1 for m in re.finditer(r'\d-\d', spaced)}
+    dashed, map2 = _drop_positions(spaced, dash_positions)
+
+    # Compose: dashed-index -> spaced-index -> original-text-index.
+    final_map = [map1[i] for i in map2]
+    return dashed, final_map
 
 
 def normalize(text: str) -> dict:
@@ -215,7 +259,7 @@ def normalize(text: str) -> dict:
         current = b64_decoded
 
     # Step 4 — Adversarial spacing removal (run on a parallel copy for detection)
-    despaced = remove_adversarial_spacing(current)
+    despaced, despaced_map = remove_adversarial_spacing_with_map(current)
     if despaced != current:
         transformations.append("adversarial_spacing_removed")
 
@@ -223,6 +267,7 @@ def normalize(text: str) -> dict:
         "original"        : text,
         "normalized"      : current,
         "despaced"        : despaced,
+        "despaced_map"    : despaced_map,  # despaced-index -> normalized-index
         "transformations" : transformations,
         "context_type"    : classify_context(text)
     }

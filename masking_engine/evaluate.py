@@ -28,6 +28,7 @@ from engine.detector import detect
 from engine.confidence_scorer import score_all, resolve_overlapping_entities
 from engine.masker import mask
 from engine.token_registry import TokenRegistry
+from engine.ml_anomaly import apply_safety_net, is_available as ml_layer_available
 
 
 # ─────────────────────────────────────────────
@@ -68,6 +69,18 @@ def evaluate():
     edge_fp_count        = 0   # edge cases that should NOT be masked but were
     edge_total           = 0
 
+    # ML safety-net (Layer 2) tracking — only ever runs when Layer 1 found
+    # nothing at all (see engine/ml_anomaly.py). Split by whether ground
+    # truth for that prompt was actually non-empty: a flag on a prompt with
+    # real ground-truth entities is Layer 2 catching a genuine Layer 1 miss
+    # (a recall win); a flag on a prompt with EMPTY ground truth is a false
+    # alarm (a precision/review-burden cost). Both numbers matter for an
+    # honest "how much does this layer actually help" read.
+    ml_layer_on            = ml_layer_available()
+    ml_flags_total         = 0
+    ml_flags_true_miss     = 0   # flagged AND ground_truth non-empty
+    ml_flags_false_alarm   = 0   # flagged AND ground_truth empty
+
     results_rows = []
 
     for record in dataset:
@@ -80,10 +93,18 @@ def evaluate():
 
         # Run engine
         norm            = normalize(text)
-        raw_entities    = detect(norm["normalized"], norm["despaced"])
+        raw_entities    = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
         scored_entities = score_all(raw_entities, norm["normalized"])
         scored_entities = resolve_overlapping_entities(scored_entities)
         masked_result   = mask(norm["normalized"], scored_entities, registry)
+
+        apply_safety_net(norm["normalized"], masked_result)
+        if any(sk["reason"] == "ml_anomaly_flagged" for sk in masked_result.skipped_entities):
+            ml_flags_total += 1
+            if ground_truth:
+                ml_flags_true_miss += 1
+            else:
+                ml_flags_false_alarm += 1
 
         # Collect detected & actually masked entity types
         detected_masked = {
@@ -202,6 +223,12 @@ def evaluate():
     print(f"  EDGE FALSE POSITIVE RATE   : {edge_fp_count}/{edge_total} "
           f"({edge_fpr:.1f}%) — lower is better")
 
+    print(f"\n  ML SAFETY NET (Layer 2)    : {'available' if ml_layer_on else 'NOT AVAILABLE (skipped)'}")
+    if ml_layer_on:
+        print(f"    Flagged (total)          : {ml_flags_total} / {len(dataset)} prompts")
+        print(f"    True misses caught       : {ml_flags_true_miss}  (Layer 1 found nothing, ground truth non-empty)")
+        print(f"    False alarms             : {ml_flags_false_alarm}  (Layer 1 found nothing, ground truth empty)")
+
     print(f"\n{'═'*70}\n")
 
     # ─────────────────────────────────────────
@@ -225,6 +252,12 @@ def evaluate():
             "adversarial_detection_rate": adv_rate,
             "edge_false_positive_rate": edge_fpr,
             "action_distribution": dict(action_dist),
+            "ml_safety_net": {
+                "available": ml_layer_on,
+                "flags_total": ml_flags_total,
+                "flags_true_miss": ml_flags_true_miss,
+                "flags_false_alarm": ml_flags_false_alarm,
+            },
         }, f, indent=2)
     print(f"  Metrics JSON saved       → {metrics_path}\n")
 

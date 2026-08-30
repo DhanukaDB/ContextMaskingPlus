@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
     for text in examples:
         norm    = normalize(text)
-        raw     = detect(norm["normalized"], norm["despaced"])
+        raw     = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
         scored  = score_all(raw, norm["normalized"])
         result  = mask(norm["normalized"], scored, registry)
         payload = generate_instructions(result)

@@ -32,8 +32,16 @@ from typing import List, Dict, Optional
 from engine.detector import DetectedEntity, BOOST_KEYWORDS, _in_same_ambiguous_group
 from engine.normalizer import get_context_window
 
-# Types ambiguous purely by digit shape — see score_entity() below.
-AMBIGUOUS_DIGIT_TYPES = {"NIC_NEW", "NIC_OLD", "TAX_ID", "BANK_ACCOUNT_NO", "PAN"}
+# Types ambiguous purely by digit shape — see score_entity() below. A
+# 10-digit "071..." number is exactly as plausible as an invoice/reference
+# number as it is a phone number, so PHONE_LK/PHONE_INTL belong here too:
+# their format validators (valid mobile/landline prefix, digit count) confirm
+# structure, not sensitivity, and shouldn't alone push a contextless number
+# past the masking threshold.
+AMBIGUOUS_DIGIT_TYPES = {
+    "NIC_NEW", "NIC_OLD", "TAX_ID", "BANK_ACCOUNT_NO", "PAN",
+    "PHONE_LK", "PHONE_INTL",
+}
 
 
 # ─────────────────────────────────────────────
@@ -108,14 +116,26 @@ def score_keyword_proximity(entity: DetectedEntity, text: str) -> float:
     context_tokens = get_context_window(text, entity.start, entity.end, window=5)
     context_lower  = " ".join(context_tokens).lower()
 
+    # A keyword can be glued directly onto the value with no whitespace
+    # between them (e.g. "PASSWORD=Bank@2026" or "JWT_SECRET=..." is one
+    # single whitespace-delimited token) — get_context_window() tokenizes
+    # on whitespace, so it excludes that *entire* token (keyword included)
+    # as "the entity's own token", hiding the keyword from context_tokens
+    # even though the entity's span (post capture-group extraction, see
+    # detector.py) covers only the value, not the keyword. A raw character
+    # lookback catches it regardless of tokenization, the same way
+    # detector._has_gating_keyword() does for detection-time gating.
+    adjacent = text[max(0, entity.start - 25):entity.start].lower()
+    combined = f"{context_lower} {entity.value.lower()} {adjacent}"
+
     for kw in keywords:
-        if kw.lower() in context_lower:
+        if kw.lower() in combined:
             return 1.0  # exact keyword found
 
     # Partial: any word in context shares prefix with a keyword
     for kw in keywords:
         kw_root = kw.lower().split()[0][:4]  # first 4 chars of first word
-        if kw_root in context_lower:
+        if kw_root in combined:
             return 0.5
 
     return 0.0
@@ -311,6 +331,19 @@ def aws_secret_key_check(value: str) -> bool:
     return len(set(secret)) >= 20
 
 
+def internal_ip_check(value: str) -> bool:
+    """The regex already restricts matches to RFC1918 private ranges, but
+    each octet's numeric range (0-255) isn't enforced by the pattern itself
+    (e.g. '192.168.999.999' still matches \\d{1,3}). Validating that closes
+    the gap and gives this structurally unambiguous format (there's no
+    legitimate non-IP reading of a valid private-range address) the same
+    real confirming evidence other precise types get from their validators."""
+    octets = value.split(".")
+    if len(octets) != 4:
+        return False
+    return all(o.isdigit() and 0 <= int(o) <= 255 for o in octets)
+
+
 def s3_bucket_ref_check(value: str) -> bool:
     bucket = value[5:].split("/")[0] if value.startswith("s3://") else value
     return (3 <= len(bucket) <= 63 and re.fullmatch(r'[a-z0-9.\-]+', bucket) is not None
@@ -336,6 +369,7 @@ FORMAT_VALIDATORS = {
     "AWS_ACCESS_KEY"  : aws_access_key_check,
     "AWS_SECRET_KEY"  : aws_secret_key_check,
     "S3_BUCKET_REF"   : s3_bucket_ref_check,
+    "INTERNAL_IP"     : internal_ip_check,
 }
 
 
@@ -469,7 +503,12 @@ def resolve_overlapping_entities(scored_entities: List[ScoredEntity]) -> List[Sc
     for i, a in enumerate(scored_entities):
         for b in scored_entities[i + 1:]:
             ta, tb = a.entity.entity_type, b.entity.entity_type
-            if ta == tb or not _in_same_ambiguous_group(ta, tb):
+            # Same-type overlapping spans are duplicates of each other
+            # (e.g. the same value re-detected via both the normal and
+            # despaced passes with slightly different offsets — fixes
+            # v.xlsx #9) and are always resolved here too; different types
+            # are only resolved when structurally ambiguous per detector.py.
+            if ta != tb and not _in_same_ambiguous_group(ta, tb):
                 continue
             if not _spans_overlap(a.entity, b.entity):
                 continue
@@ -504,7 +543,7 @@ if __name__ == "__main__":
 
     for text in examples:
         norm    = normalize(text)
-        raw     = detect(norm["normalized"], norm["despaced"])
+        raw     = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
         scored  = score_all(raw, norm["normalized"])
 
         print(f"\n{'─'*60}")
