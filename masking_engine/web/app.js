@@ -108,6 +108,22 @@ function renderResults(data) {
     transformBox.classList.add("hidden");
   }
 
+  const mlBox = document.getElementById("ml-safety-net-box");
+  const mlNet = data.ml_safety_net;
+  if (mlNet && mlNet.flagged) {
+    mlBox.classList.remove("hidden");
+    mlBox.classList.add("flagged");
+    document.getElementById("ml-safety-net-text").textContent =
+      `no rule-based pattern matched, but the trained classifier scored this prompt ${Math.round(mlNet.score * 100)}% likely sensitive by structure/entropy — flagged for review, not masked (see engine/ml_anomaly.py).`;
+  } else if (mlNet && mlNet.available) {
+    mlBox.classList.remove("hidden");
+    mlBox.classList.remove("flagged");
+    document.getElementById("ml-safety-net-text").textContent =
+      "checked — no anomaly beyond what Layer 1 already found.";
+  } else {
+    mlBox.classList.add("hidden");
+  }
+
   const listEl = document.getElementById("entities-list");
   if (!data.entities || data.entities.length === 0) {
     listEl.innerHTML = '<p class="no-entities">No sensitive entities detected.</p>';

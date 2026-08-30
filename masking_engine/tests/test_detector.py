@@ -237,5 +237,80 @@ class TestFullNameRecall(unittest.TestCase):
         self.assertIn("FULL_NAME", types)
 
 
+class TestPanelReviewFixes(unittest.TestCase):
+    """Regression tests for the 15 issues logged in fixes v.xlsx (panel
+    review of PP1). Each test name references the issue it locks in."""
+
+    def test_transaction_id_not_flagged_as_nic(self):
+        types = types_detected(
+            "Please investigate transaction ID 202608260145 and identify why the banking transaction failed."
+        )
+        self.assertNotIn("NIC_NEW", types)
+
+    def test_taxonomy_customer_reference_still_works(self):
+        # "customer reference" must NOT be caught by the transaction/order/
+        # invoice suppression list — it's a legitimate NIC_NEW boost keyword
+        # and the taxonomy's own worked example.
+        self.assertIn("NIC_NEW", types_detected("Customer reference: 200423910321"))
+
+    def test_invoice_reference_not_flagged_as_phone(self):
+        types = types_detected(
+            "The invoice reference is 0712345678. Please locate the invoice and check its payment status."
+        )
+        self.assertNotIn("PHONE_LK", types)
+
+    def test_order_reference_not_flagged_as_nic(self):
+        types = types_detected(
+            "The internal order reference is 200423910321. Please check the status of this banking order."
+        )
+        self.assertNotIn("NIC_NEW", types)
+
+    def test_password_masking_preserves_label(self):
+        norm = normalize("The production configuration contains DB_PASSWORD=Bank@2026.")
+        raw = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
+        scored = resolve_overlapping_entities(score_all(raw, norm["normalized"]))
+        pw = next(s for s in scored if s.entity.entity_type == "PASSWORD")
+        self.assertEqual(pw.entity.value, "Bank@2026")
+
+    def test_jwt_secret_env_style_detected(self):
+        types = types_detected("The production configuration contains JWT_SECRET=my-super-secret-jwt-key-2026.")
+        self.assertIn("PASSWORD", types)
+
+    def test_jwt_secret_code_style_detected(self):
+        types = types_detected("const jwtSecret = 'my-super-secret-jwt-key-2026';")
+        self.assertIn("PASSWORD", types)
+
+    def test_code_password_assignment_preserves_surrounding_code(self):
+        norm = normalize("const password = 'Admin@123'; const user = 'admin';")
+        raw = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
+        scored = resolve_overlapping_entities(score_all(raw, norm["normalized"]))
+        pw = next(s for s in scored if s.entity.entity_type == "PASSWORD")
+        self.assertEqual(pw.entity.value, "Admin@123")
+
+    def test_short_sk_prefixed_key_demoted_to_generic(self):
+        types = types_detected("The banking application uses API_KEY=sk-abcdef123456789012345678.")
+        self.assertIn("API_KEY_GENERIC", types)
+        self.assertNotIn("API_KEY_OPENAI", types)
+
+    def test_transaction_date_not_flagged_as_dob(self):
+        types = types_detected(
+            "The transaction occurred on 2026-08-24. Please investigate the failed banking transaction."
+        )
+        self.assertNotIn("DATE_OF_BIRTH", types)
+
+    def test_dob_with_context_still_detected(self):
+        self.assertIn("DATE_OF_BIRTH", types_detected("Customer DOB is 1990-05-12, please verify KYC."))
+
+    def test_account_number_not_flagged_as_home_address(self):
+        types = types_detected(
+            "Account number 987654321012 was reported by the customer after a password reset failure."
+        )
+        self.assertNotIn("HOME_ADDRESS", types)
+        self.assertIn("BANK_ACCOUNT_NO", types)
+
+    def test_genuine_address_still_detected(self):
+        self.assertIn("HOME_ADDRESS", types_detected("Customer resides at 245, Galle Road, Colombo."))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

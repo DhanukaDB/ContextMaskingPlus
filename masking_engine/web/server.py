@@ -26,6 +26,8 @@ from engine.detector import detect, PATTERNS, NER_KEYWORDS, COMPILED_NER
 from engine.confidence_scorer import score_all, resolve_overlapping_entities
 from engine.masker import mask
 from engine.token_registry import TokenRegistry
+from engine.ml_anomaly import apply_safety_net, is_available as ml_layer_available
+from engine.canonical_adapter import process_canonical_request
 from main import DEMO_CASES
 
 WEB_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -71,6 +73,14 @@ def run_pipeline(text: str) -> dict:
     registry.next_prompt()
     masked_result = mask(norm["normalized"], scored_entities, registry)
 
+    # Layer 2 — ML safety net. Only fires when Layer 1 (regex/NER) found
+    # nothing; never masks anything itself. See engine/ml_anomaly.py.
+    apply_safety_net(norm["normalized"], masked_result)
+    ml_flag = next(
+        (sk for sk in masked_result.skipped_entities if sk["reason"] == "ml_anomaly_flagged"),
+        None,
+    )
+
     entities_out = []
     for s in scored_entities:
         e = s.entity
@@ -98,6 +108,11 @@ def run_pipeline(text: str) -> dict:
         "masked_text": masked_result.masked_text,
         "overall_risk": masked_result.overall_risk,
         "entities": entities_out,
+        "ml_safety_net": {
+            "available": ml_layer_available(),
+            "flagged": ml_flag is not None,
+            "score": ml_flag["score"] if ml_flag else None,
+        },
     }
     return result
 
@@ -143,10 +158,15 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404, "Not found")
 
     def do_POST(self):
-        if urlparse(self.path).path != "/api/detect":
+        route = urlparse(self.path).path
+        if route == "/api/detect":
+            self._handle_detect()
+        elif route == "/api/detect-canonical":
+            self._handle_detect_canonical()
+        else:
             self.send_error(404, "Not found")
-            return
 
+    def _handle_detect(self):
         try:
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length)
@@ -156,6 +176,25 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"error": "Provide non-empty 'text'."}, status=400)
                 return
             result = run_pipeline(text)
+            self._send_json(result)
+        except Exception as exc:
+            self._send_json({"error": f"{type(exc).__name__}: {exc}"}, status=500)
+
+    def _handle_detect_canonical(self):
+        """Accepts the upstream 'Canonical Prompt and Context Structuring'
+        contract ({request: {prompt}, context: [{content, source, ...}]})
+        and returns it with request.prompt and every context[].content
+        masked in place — see engine/canonical_adapter.py."""
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            payload = json.loads(body or b"{}")
+            if not isinstance(payload, dict) or "request" not in payload:
+                self._send_json(
+                    {"error": "Expected an object with a 'request' field."}, status=400
+                )
+                return
+            result = process_canonical_request(payload)
             self._send_json(result)
         except Exception as exc:
             self._send_json({"error": f"{type(exc).__name__}: {exc}"}, status=500)

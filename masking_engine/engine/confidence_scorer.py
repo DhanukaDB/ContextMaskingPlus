@@ -116,13 +116,17 @@ def score_keyword_proximity(entity: DetectedEntity, text: str) -> float:
     context_tokens = get_context_window(text, entity.start, entity.end, window=5)
     context_lower  = " ".join(context_tokens).lower()
 
-    # Some entity types' own regex match embeds the keyword as part of the
-    # match itself (e.g. PASSWORD's pattern is "password ... value" in one
-    # contiguous match) — get_context_window() deliberately excludes the
-    # entity's own overlapping token, which excludes exactly that keyword.
-    # Checking the matched value's own text alongside the surrounding
-    # context fixes this without needing a type-specific carve-out.
-    combined = f"{context_lower} {entity.value.lower()}"
+    # A keyword can be glued directly onto the value with no whitespace
+    # between them (e.g. "PASSWORD=Bank@2026" or "JWT_SECRET=..." is one
+    # single whitespace-delimited token) — get_context_window() tokenizes
+    # on whitespace, so it excludes that *entire* token (keyword included)
+    # as "the entity's own token", hiding the keyword from context_tokens
+    # even though the entity's span (post capture-group extraction, see
+    # detector.py) covers only the value, not the keyword. A raw character
+    # lookback catches it regardless of tokenization, the same way
+    # detector._has_gating_keyword() does for detection-time gating.
+    adjacent = text[max(0, entity.start - 25):entity.start].lower()
+    combined = f"{context_lower} {entity.value.lower()} {adjacent}"
 
     for kw in keywords:
         if kw.lower() in combined:
@@ -499,7 +503,12 @@ def resolve_overlapping_entities(scored_entities: List[ScoredEntity]) -> List[Sc
     for i, a in enumerate(scored_entities):
         for b in scored_entities[i + 1:]:
             ta, tb = a.entity.entity_type, b.entity.entity_type
-            if ta == tb or not _in_same_ambiguous_group(ta, tb):
+            # Same-type overlapping spans are duplicates of each other
+            # (e.g. the same value re-detected via both the normal and
+            # despaced passes with slightly different offsets — fixes
+            # v.xlsx #9) and are always resolved here too; different types
+            # are only resolved when structurally ambiguous per detector.py.
+            if ta != tb and not _in_same_ambiguous_group(ta, tb):
                 continue
             if not _spans_overlap(a.entity, b.entity):
                 continue

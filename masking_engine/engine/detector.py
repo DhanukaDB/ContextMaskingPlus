@@ -87,8 +87,18 @@ PATTERNS = [
     ("API_KEY_GENERIC", r'\b[A-Za-z0-9_\-]{32,}\b',     "HIGH",     "3A", "partial"),  # needs keyword
     ("JWT_TOKEN",       r'\beyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\b', "HIGH", "3A", "exact"),
 
-    # ── Category 3B: Passwords ───────────────────────────────────────
-    ("PASSWORD",        r'(?i)(?:password|passwd|pwd)\s*[=:]\s*\S+', "HIGH", "3B", "exact"),
+    # ── Category 3B: Passwords & Secret Assignments ──────────────────
+    # Capture group 1 = the secret VALUE only (not the keyword/separator) —
+    # detect() uses group(1)'s span when present so masking never eats the
+    # "PASSWORD="/"jwtSecret =" label itself (fixes v.xlsx #3, #6). The
+    # keyword alternation covers both env/shell style (JWT_SECRET=...,
+    # DB_PASSWORD=...) and JS/code style (const jwtSecret = '...') since
+    # "secret"/"password" match as a case-insensitive substring of the
+    # identifier either way (fixes v.xlsx #4, #7). Trailing "." is excluded
+    # from the value so a sentence-ending period isn't swallowed into the
+    # secret; quotes/semicolons/commas are excluded so a quoted JS string
+    # literal's closing quote correctly ends the capture.
+    ("PASSWORD",        r'(?i)\b[\w]*(?:password|passwd|pwd|pass|secret)[\w]*\s*[=:]\s*[\'"]?([^\s\'";,.)]+)', "HIGH", "3B", "exact"),
 
     # ── Category 3C: Private Keys ───────────────────────────────────
     ("PRIVATE_KEY",     r'-----BEGIN (RSA |EC )?PRIVATE KEY-----', "CRITICAL", "3C", "exact"),
@@ -145,10 +155,24 @@ NER_KEYWORDS = {
         r'\b\d{4}-\d{2}-\d{2}\b'
     ],
     "HOME_ADDRESS": [
-        r'\b\d+,?\s+[A-Za-z ]+(?:Road|Street|Lane|Avenue|Rd|St|Ave|Mawatha)'
-        r'(?:,\s*[A-Za-z ]+)?\b'
+        # Name portion is a bounded run of whole words (<=4), each separated
+        # by a real space, followed by a MANDATORY space before the street-
+        # suffix word. This forces the suffix to start its own token — the
+        # old `[A-Za-z ]+` allowed the suffix to match mid-word (e.g. the
+        # "rd" tail of "password", the "st" inside "customer"), which could
+        # swallow an entire unrelated sentence into one bogus HOME_ADDRESS
+        # match (fixes v.xlsx #12, #13, #14, #15).
+        r'\b\d+,?\s+[A-Za-z]+(?:\s[A-Za-z]+){0,3}\s'
+        r'(?:Road|Street|Lane|Avenue|Rd|St|Ave|Mawatha)\b'
+        r'(?:,\s*[A-Za-z]+(?:\s[A-Za-z]+){0,3})?'
     ]
 }
+
+# Bare-ISO-date DOB fallback (NER_KEYWORDS["DATE_OF_BIRTH"][1]) has no
+# keyword of its own baked into the regex, unlike index 0 — so it must be
+# gated on nearby DOB context or it fires on every ordinary transaction/
+# log/incident date (fixes v.xlsx #8).
+DOB_GATING_KEYWORDS = ["dob", "date of birth", "born", "birth date", "birthday"]
 
 COMPILED_NER = {
     entity_type: [re.compile(p, re.IGNORECASE) for p in patterns]
@@ -174,7 +198,7 @@ BOOST_KEYWORDS = {
     "SWIFT_BIC"      : ["swift", "bic", "bank code"],
     "API_KEY_GENERIC": ["api_key", "api key", "apikey", "token", "secret", "key"],
     "API_KEY_OPENAI" : ["api_key", "api key", "apikey", "token", "secret", "key"],
-    "PASSWORD"       : ["password", "passwd", "pwd", "credentials"],
+    "PASSWORD"       : ["password", "passwd", "pwd", "pass", "credentials", "secret"],
     "AWS_ACCESS_KEY" : ["aws", "access key", "iam"],
     "AWS_SECRET_KEY" : ["aws", "secret", "credentials"],
     "S3_BUCKET_REF"  : ["s3", "bucket", "storage"],
@@ -203,6 +227,14 @@ AMBIGUOUS_TYPE_GROUPS = [
     frozenset({"TAX_ID", "NIC_OLD"}),
     frozenset({"PASSPORT", "DRIVING_LICENSE"}),
     frozenset({"PAN", "BANK_ACCOUNT_NO"}),
+    # PASSWORD's span is now just the captured VALUE (see the PASSWORD
+    # pattern above), which can be structurally identical to a bare
+    # API_KEY_GENERIC match at the same position when the secret value is
+    # long/opaque enough — both patterns' keyword lists even share "secret"/
+    # "key". Let both candidates through to scoring instead of the
+    # first-registered pattern silently winning (which was dropping real
+    # PASSWORD detections — fixes v.xlsx #3/#4/#6/#7 follow-up).
+    frozenset({"PASSWORD", "API_KEY_GENERIC"}),
 ]
 
 
@@ -219,6 +251,58 @@ def _in_same_ambiguous_group(type_a: str, type_b: str) -> bool:
 # match API_KEY_GENERIC. Matches of other types that fall strictly *inside*
 # a container match's span are dropped.
 CONTAINER_TYPES = {"PAN", "JWT_TOKEN", "JWT_IN_LOG"}
+
+# A qualifier PHRASE directly before a generic numeric identifier means
+# it's a non-sensitive business reference number, NOT a national ID, phone
+# number, or TIN — even when a positive boost keyword like "id"/"number"
+# also technically appears right next to it. Without this, "ID" in
+# "transaction ID 202608260145" satisfies NIC_NEW's generic "id" keyword
+# and gets masked as a national ID (fixes v.xlsx #1, #10, #11).
+#
+# Deliberately phrase-level (2 words), not single qualifier words: the
+# taxonomy's own worked example ("Customer reference: 200423910321") is a
+# legitimate MEDIUM-confidence NIC_NEW case and "customer reference" is
+# already a positive NIC_NEW boost keyword — a bare "reference"/"order"
+# qualifier word would wrongly suppress it too. Only the specific
+# non-identity phrases below (business-object + id/number/reference) count.
+NON_SENSITIVE_ID_PHRASES = [
+    "transaction id", "transaction number", "transaction reference",
+    "order reference", "order number", "order id",
+    "invoice reference", "invoice number",
+    "tracking reference", "tracking number", "tracking id",
+    "serial number", "device serial",
+    "batch number",
+    "asset tag", "asset number",
+    "ticket number", "ticket id",
+    "case number", "case id",
+    "shipment reference", "shipment number",
+    "confirmation number",
+    "correlation id",
+    "session id",
+    "request id",
+]
+SUPPRESS_IF_QUALIFIED = {"NIC_OLD", "NIC_NEW", "TAX_ID", "PHONE_LK", "PHONE_INTL"}
+
+# Real OpenAI keys run ~48-56 chars after "sk-"; a shorter/placeholder-
+# looking "sk-..." string isn't confidently OpenAI-branded and should be
+# treated as an opaque generic key rather than over-claiming the vendor
+# (fixes v.xlsx #5).
+API_KEY_OPENAI_MIN_LEN = 43
+
+# Entity types whose pattern deliberately uses a capture group so the
+# entity's span is the captured VALUE, not the whole match (see PASSWORD's
+# "keyword=(VALUE)" pattern above). Several OTHER patterns have incidental,
+# non-deliberate capturing groups for internal branching (CARD_EXPIRY's
+# month alternation, SWIFT_BIC's optional branch-code group, PRIVATE_KEY's
+# RSA/EC prefix, INTERNAL_IP's octet alternation) — those must keep using
+# the whole match, so this is an explicit opt-in list rather than "any
+# pattern with a capture group."
+VALUE_GROUP_TYPES = {"PASSWORD"}
+
+
+def _has_suppression_qualifier(source_text: str, start: int) -> bool:
+    preceding = source_text[max(0, start - 60):start].lower()
+    return any(phrase in preceding for phrase in NON_SENSITIVE_ID_PHRASES)
 
 
 # ─────────────────────────────────────────────
@@ -287,8 +371,37 @@ def detect(
     def _run_patterns(source_text: str, translate=lambda s, e: (s, e)):
         for entity_type, compiled, sensitivity, category, match_quality in _ordered_patterns:
             for match in compiled.finditer(source_text):
-                start, end = translate(match.start(), match.end())
+                # If the pattern defines a capture group (e.g. PASSWORD's
+                # "keyword=(VALUE)"), the entity's span is the captured
+                # VALUE only — not the keyword/separator — so masking never
+                # eats the label itself (fixes v.xlsx #3, #6). Patterns
+                # without a group fall back to the whole match, unchanged.
+                if entity_type in VALUE_GROUP_TYPES and match.lastindex:
+                    raw_start, raw_end, raw_value = match.start(1), match.end(1), match.group(1)
+                else:
+                    raw_start, raw_end, raw_value = match.start(0), match.end(0), match.group(0)
+
+                start, end = translate(raw_start, raw_end)
                 span  = (start, end)
+
+                # A qualifier like "transaction"/"order"/"invoice" right
+                # before a generic numeric identifier overrides an
+                # otherwise-matching boost keyword — this is a non-sensitive
+                # business reference, not an NIC/phone/TIN (fixes v.xlsx
+                # #1, #10, #11). Checked against the *raw* match start
+                # (pre-translate) since source_text is what the qualifier
+                # lookback is measured against.
+                if entity_type in SUPPRESS_IF_QUALIFIED and _has_suppression_qualifier(source_text, match.start()):
+                    continue
+
+                # An "sk-"-prefixed key too short to be confidently
+                # OpenAI-shaped is reclassified as a generic key rather than
+                # over-claiming the vendor (fixes v.xlsx #5). Re-tag before
+                # the container/seen_spans bookkeeping below so everything
+                # downstream (gating, scoring, masking) sees the corrected
+                # type consistently.
+                if entity_type == "API_KEY_OPENAI" and len(raw_value) < API_KEY_OPENAI_MIN_LEN:
+                    entity_type, sensitivity, category, match_quality = "API_KEY_GENERIC", "HIGH", "3A", "partial"
 
                 if entity_type in CONTAINER_TYPES:
                     if span not in container_spans:
@@ -310,7 +423,7 @@ def detect(
                     continue
 
                 # Avoid very short generic matches without keyword context
-                value = match.group(0).strip()
+                value = raw_value.strip()
                 if len(value) < 3:
                     continue
 
@@ -344,11 +457,32 @@ def detect(
     # Run NER patterns
     for entity_type, patterns in COMPILED_NER.items():
         sensitivity, category = NER_SENSITIVITY[entity_type]
-        for pattern in patterns:
+        for pat_idx, pattern in enumerate(patterns):
             for match in pattern.finditer(text):
                 span = (match.start(), match.end())
                 if span in seen_spans:
                     continue
+
+                # NER patterns (esp. HOME_ADDRESS) are the fuzziest matches
+                # in this engine — never let one swallow a span that a more
+                # precise regex/keyword pass already confirmed (e.g. a bank
+                # account digit run) into an oversized address-shaped match
+                # (fixes v.xlsx #13, #14, #15, as defense-in-depth alongside
+                # the HOME_ADDRESS regex tightening above).
+                if any(match.start() < e.end and e.start < match.end() for e in entities):
+                    continue
+
+                # The bare-ISO-date DOB fallback (index 1) has no keyword
+                # of its own in the regex — gate it on nearby DOB context or
+                # it fires on every ordinary transaction/log/incident date
+                # (fixes v.xlsx #8). Index 0 already requires the keyword as
+                # part of the match itself, so it needs no extra gating.
+                if entity_type == "DATE_OF_BIRTH" and pat_idx == 1:
+                    lookback  = text[max(0, match.start() - 40):match.start()].lower()
+                    lookahead = text[match.end():match.end() + 15].lower()
+                    if not any(kw in lookback or kw in lookahead for kw in DOB_GATING_KEYWORDS):
+                        continue
+
                 seen_spans.setdefault(span, set()).add(entity_type)
                 entities.append(DetectedEntity(
                     entity_type   = entity_type,

@@ -146,6 +146,22 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   color: var(--text-dim);
 }
 
+.ml-safety-net {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  color: var(--text-dim);
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+}
+
+.ml-safety-net.flagged {
+  color: var(--medium);
+  background: rgba(255,201,91,0.1);
+  border-color: var(--medium);
+}
+
 .entity-card {
   background: var(--panel);
   border: 1px solid var(--panel-border);
