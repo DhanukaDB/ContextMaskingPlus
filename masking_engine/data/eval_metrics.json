@@ -251,6 +251,8 @@
   "ml_safety_net": {
     "available": true,
     "flags_total": 123,
+    "masks_applied": 103,
+    "flags_review_only": 20,
     "flags_true_miss": 123,
     "flags_false_alarm": 0
   }

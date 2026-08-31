@@ -66,9 +66,10 @@ def process_prompt(text: str, registry: TokenRegistry, verbose: bool = True) -> 
     # Step 4 — Mask
     masked_result = mask(norm["normalized"], scored_entities, registry)
 
-    # Step 4.5 — ML safety net (Layer 2, optional). Only ever adds a
-    # review flag when Layer 1 found nothing at all — see ml_anomaly.py.
-    apply_safety_net(norm["normalized"], masked_result)
+    # Step 4.5 — ML safety net (Layer 2, optional). Only ever runs when
+    # Layer 1 found nothing at all; masks a located span via a deterministic
+    # rule, or falls back to a review-only flag — see ml_anomaly.py.
+    apply_safety_net(norm["normalized"], masked_result, registry)
 
     # Step 5 — Generate instructions
     instruction_payload = generate_instructions(masked_result)

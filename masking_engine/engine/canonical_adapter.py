@@ -36,7 +36,7 @@ from engine.normalizer import normalize
 from engine.detector import detect
 from engine.confidence_scorer import score_all, resolve_overlapping_entities
 from engine.masker import mask
-from engine.ml_anomaly import apply_safety_net
+from engine.ml_anomaly import apply_safety_net, get_ml_flag
 from engine.token_registry import TokenRegistry
 
 
@@ -46,12 +46,9 @@ def _mask_field(text: str, registry: TokenRegistry) -> Dict[str, Any]:
     raw = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
     scored = resolve_overlapping_entities(score_all(raw, norm["normalized"]))
     result = mask(norm["normalized"], scored, registry)
-    apply_safety_net(norm["normalized"], result)
+    apply_safety_net(norm["normalized"], result, registry)
 
-    ml_flag = next(
-        (sk for sk in result.skipped_entities if sk["reason"] == "ml_anomaly_flagged"),
-        None,
-    )
+    ml_flag = get_ml_flag(result)
     return {
         "masked_text": result.masked_text,
         "overall_risk": result.overall_risk,
@@ -64,6 +61,7 @@ def _mask_field(text: str, registry: TokenRegistry) -> Dict[str, Any]:
             for m in result.masked_entities
         ],
         "ml_flagged": ml_flag is not None,
+        "ml_masked": ml_flag is not None and "replacement" in ml_flag,
     }
 
 

@@ -110,11 +110,16 @@ function renderResults(data) {
 
   const mlBox = document.getElementById("ml-safety-net-box");
   const mlNet = data.ml_safety_net;
-  if (mlNet && mlNet.flagged) {
+  if (mlNet && mlNet.flagged && mlNet.masked) {
     mlBox.classList.remove("hidden");
     mlBox.classList.add("flagged");
     document.getElementById("ml-safety-net-text").textContent =
-      `no rule-based pattern matched, but the trained classifier scored this prompt ${Math.round(mlNet.score * 100)}% likely sensitive by structure/entropy — flagged for review, not masked (see engine/ml_anomaly.py).`;
+      `no rule-based pattern matched, but the trained classifier scored this prompt ${Math.round(mlNet.score * 100)}% likely sensitive by structure/entropy — the suspicious token(s) below were masked as <ML_FLAGGED_...> (see engine/ml_anomaly.py).`;
+  } else if (mlNet && mlNet.flagged) {
+    mlBox.classList.remove("hidden");
+    mlBox.classList.add("flagged");
+    document.getElementById("ml-safety-net-text").textContent =
+      `no rule-based pattern matched, but the trained classifier scored this prompt ${Math.round(mlNet.score * 100)}% likely sensitive by structure/entropy — no specific span could be located, so it's flagged for human review instead of masked (see engine/ml_anomaly.py).`;
   } else if (mlNet && mlNet.available) {
     mlBox.classList.remove("hidden");
     mlBox.classList.remove("flagged");

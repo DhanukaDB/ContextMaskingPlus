@@ -26,7 +26,7 @@ from engine.detector import detect, PATTERNS, NER_KEYWORDS, COMPILED_NER
 from engine.confidence_scorer import score_all, resolve_overlapping_entities
 from engine.masker import mask
 from engine.token_registry import TokenRegistry
-from engine.ml_anomaly import apply_safety_net, is_available as ml_layer_available
+from engine.ml_anomaly import apply_safety_net, is_available as ml_layer_available, get_ml_flag
 from engine.canonical_adapter import process_canonical_request
 from main import DEMO_CASES
 
@@ -74,12 +74,10 @@ def run_pipeline(text: str) -> dict:
     masked_result = mask(norm["normalized"], scored_entities, registry)
 
     # Layer 2 — ML safety net. Only fires when Layer 1 (regex/NER) found
-    # nothing; never masks anything itself. See engine/ml_anomaly.py.
-    apply_safety_net(norm["normalized"], masked_result)
-    ml_flag = next(
-        (sk for sk in masked_result.skipped_entities if sk["reason"] == "ml_anomaly_flagged"),
-        None,
-    )
+    # nothing; masks a located span via a deterministic rule, or falls
+    # back to a review-only flag. See engine/ml_anomaly.py.
+    apply_safety_net(norm["normalized"], masked_result, registry)
+    ml_flag = get_ml_flag(masked_result)
 
     entities_out = []
     for s in scored_entities:
@@ -111,6 +109,7 @@ def run_pipeline(text: str) -> dict:
         "ml_safety_net": {
             "available": ml_layer_available(),
             "flagged": ml_flag is not None,
+            "masked": ml_flag is not None and "replacement" in ml_flag,
             "score": ml_flag["score"] if ml_flag else None,
         },
     }
