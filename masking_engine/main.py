@@ -19,10 +19,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from engine.normalizer import normalize
 from engine.detector import detect
-from engine.confidence_scorer import score_all
+from engine.confidence_scorer import score_all, resolve_overlapping_entities
 from engine.masker import mask
 from engine.token_registry import TokenRegistry
 from engine.instruction_generator import generate_instructions, format_for_display
+from engine.ml_anomaly import apply_safety_net
 
 
 # ─────────────────────────────────────────────
@@ -56,13 +57,19 @@ def process_prompt(text: str, registry: TokenRegistry, verbose: bool = True) -> 
     norm = normalize(text)
 
     # Step 2 — Detect
-    raw_entities = detect(norm["normalized"], norm["despaced"])
+    raw_entities = detect(norm["normalized"], norm["despaced"], norm["despaced_map"])
 
     # Step 3 — Score
     scored_entities = score_all(raw_entities, norm["normalized"])
+    scored_entities = resolve_overlapping_entities(scored_entities)
 
     # Step 4 — Mask
     masked_result = mask(norm["normalized"], scored_entities, registry)
+
+    # Step 4.5 — ML safety net (Layer 2, optional). Only ever runs when
+    # Layer 1 found nothing at all; masks a located span via a deterministic
+    # rule, or falls back to a review-only flag — see ml_anomaly.py.
+    apply_safety_net(norm["normalized"], masked_result, registry)
 
     # Step 5 — Generate instructions
     instruction_payload = generate_instructions(masked_result)
@@ -109,7 +116,15 @@ def print_result(text, norm, scored_entities, masked_result, instruction_payload
             }.get(level, "")
             print(f"  {e.entity_type:<22} {val:<30} {s.score:>6.2f}  "
                   f"{level_col}{level:<10}{C.RESET} {s.action}")
-    else:
+    ml_masked = [m for m in masked_result.masked_entities
+                 if m["entity_type"] == "ML_FLAGGED_ANOMALY"]
+    if ml_masked:
+        print(f"\n  {C.CYAN}[DETECTED BY ML (LAYER 2)]{C.RESET}")
+        for m in ml_masked:
+            val = (m["original"][:27] + "...") if len(m["original"]) > 30 else m["original"]
+            print(f"  {m['entity_type']:<22} {val:<30} {round(m['score'] * 100):>5}%  "
+                  f"ML confidence → {m['replacement']}")
+    elif not scored_entities:
         print(f"\n  {C.GREEN}[NO SENSITIVE ENTITIES DETECTED]{C.RESET}")
 
     # Masking output
@@ -180,7 +195,7 @@ DEMO_CASES = [
     },
     {
         "label": "Cloud — AWS Keys",
-        "text" : "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENGbPxRfiCYEXAMPLEKEY",
+        "text" : "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
     },
     {
         "label": "Session idempotency — same API key in second prompt",

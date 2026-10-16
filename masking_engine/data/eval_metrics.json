@@ -1,31 +1,31 @@
 {
   "overall": {
-    "precision": 0.39314516129032256,
-    "recall": 0.5416666666666666,
-    "f1": 0.45560747663551393,
-    "tp": 195,
-    "fp": 301,
-    "fn": 165
+    "precision": 0.9511445165698668,
+    "recall": 0.9317269076305221,
+    "f1": 0.9413355874894338,
+    "tp": 5568,
+    "fp": 286,
+    "fn": 408
   },
   "per_entity_type": {
     "API_KEY_GENERIC": {
-      "tp": 15,
-      "fp": 93,
-      "fn": 0,
-      "precision": 0.1388888888888889,
-      "recall": 1.0,
-      "f1": 0.24390243902439027
+      "tp": 320,
+      "fp": 15,
+      "fn": 47,
+      "precision": 0.9552238805970149,
+      "recall": 0.8719346049046321,
+      "f1": 0.9116809116809116
     },
     "API_KEY_OPENAI": {
-      "tp": 0,
-      "fp": 25,
+      "tp": 85,
+      "fp": 0,
       "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
     },
     "AWS_ACCESS_KEY": {
-      "tp": 5,
+      "tp": 88,
       "fp": 0,
       "fn": 0,
       "precision": 1.0,
@@ -33,55 +33,55 @@
       "f1": 1.0
     },
     "AWS_SECRET_KEY": {
-      "tp": 0,
+      "tp": 24,
       "fp": 0,
-      "fn": 5,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
+      "fn": 27,
+      "precision": 1.0,
+      "recall": 0.47058823529411764,
+      "f1": 0.6399999999999999
     },
     "BANK_ACCOUNT_NO": {
-      "tp": 0,
-      "fp": 30,
-      "fn": 20,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "BASE64_ENCODED_SECRET": {
-      "tp": 0,
+      "tp": 292,
       "fp": 0,
-      "fn": 10,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
+      "fn": 36,
+      "precision": 1.0,
+      "recall": 0.8902439024390244,
+      "f1": 0.9419354838709678
     },
     "CARD_EXPIRY": {
-      "tp": 0,
-      "fp": 15,
+      "tp": 77,
+      "fp": 18,
       "fn": 0,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
+      "precision": 0.8105263157894737,
+      "recall": 1.0,
+      "f1": 0.8953488372093024
     },
     "CVV": {
-      "tp": 15,
-      "fp": 64,
-      "fn": 0,
-      "precision": 0.189873417721519,
-      "recall": 1.0,
-      "f1": 0.3191489361702127
-    },
-    "DATE_OF_BIRTH": {
-      "tp": 10,
+      "tp": 70,
       "fp": 0,
       "fn": 0,
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0
     },
+    "DATE_OF_BIRTH": {
+      "tp": 166,
+      "fp": 0,
+      "fn": 18,
+      "precision": 1.0,
+      "recall": 0.9021739130434783,
+      "f1": 0.9485714285714286
+    },
     "DB_CONNECTION_STRING": {
-      "tp": 10,
+      "tp": 131,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "DRIVING_LICENSE": {
+      "tp": 82,
       "fp": 0,
       "fn": 0,
       "precision": 1.0,
@@ -89,47 +89,31 @@
       "f1": 1.0
     },
     "EMAIL": {
-      "tp": 20,
+      "tp": 355,
       "fp": 0,
       "fn": 0,
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0
-    },
-    "EXPIRY": {
-      "tp": 0,
-      "fp": 0,
-      "fn": 15,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
     },
     "FULL_NAME": {
-      "tp": 30,
-      "fp": 10,
-      "fn": 0,
-      "precision": 0.75,
-      "recall": 1.0,
-      "f1": 0.8571428571428571
-    },
-    "HEX_ENCODED_SECRET": {
-      "tp": 0,
+      "tp": 167,
       "fp": 0,
-      "fn": 10,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
+      "fn": 188,
+      "precision": 1.0,
+      "recall": 0.4704225352112676,
+      "f1": 0.6398467432950191
     },
     "HOME_ADDRESS": {
-      "tp": 10,
+      "tp": 206,
       "fp": 0,
-      "fn": 0,
+      "fn": 22,
       "precision": 1.0,
-      "recall": 1.0,
-      "f1": 1.0
+      "recall": 0.9035087719298246,
+      "f1": 0.9493087557603688
     },
     "IBAN": {
-      "tp": 15,
+      "tp": 99,
       "fp": 0,
       "fn": 0,
       "precision": 1.0,
@@ -137,71 +121,87 @@
       "f1": 1.0
     },
     "INTERNAL_IP": {
-      "tp": 5,
-      "fp": 10,
+      "tp": 291,
+      "fp": 72,
       "fn": 0,
-      "precision": 0.3333333333333333,
+      "precision": 0.8016528925619835,
       "recall": 1.0,
-      "f1": 0.5
+      "f1": 0.8899082568807339
     },
-    "JWT_TOKEN": {
-      "tp": 0,
-      "fp": 0,
-      "fn": 5,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "NIC_NEW": {
-      "tp": 0,
-      "fp": 35,
-      "fn": 25,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "NIC_OLD": {
-      "tp": 0,
-      "fp": 0,
-      "fn": 25,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "OBFUSCATED_NIC": {
-      "tp": 0,
-      "fp": 0,
-      "fn": 20,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
-    },
-    "PAN": {
-      "tp": 15,
+    "JWT_IN_LOG": {
+      "tp": 31,
       "fp": 0,
       "fn": 0,
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0
     },
+    "JWT_TOKEN": {
+      "tp": 59,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "NIC_NEW": {
+      "tp": 406,
+      "fp": 26,
+      "fn": 0,
+      "precision": 0.9398148148148148,
+      "recall": 1.0,
+      "f1": 0.9689737470167064
+    },
+    "NIC_OLD": {
+      "tp": 752,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    "PAN": {
+      "tp": 232,
+      "fp": 26,
+      "fn": 6,
+      "precision": 0.8992248062015504,
+      "recall": 0.9747899159663865,
+      "f1": 0.935483870967742
+    },
+    "PASSPORT": {
+      "tp": 91,
+      "fp": 59,
+      "fn": 0,
+      "precision": 0.6066666666666667,
+      "recall": 1.0,
+      "f1": 0.7551867219917012
+    },
     "PASSWORD": {
-      "tp": 0,
-      "fp": 10,
-      "fn": 20,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
+      "tp": 582,
+      "fp": 39,
+      "fn": 62,
+      "precision": 0.9371980676328503,
+      "recall": 0.9037267080745341,
+      "f1": 0.9201581027667984
+    },
+    "PHONE_INTL": {
+      "tp": 83,
+      "fp": 0,
+      "fn": 2,
+      "precision": 1.0,
+      "recall": 0.9764705882352941,
+      "f1": 0.988095238095238
     },
     "PHONE_LK": {
-      "tp": 10,
-      "fp": 9,
+      "tp": 280,
+      "fp": 7,
       "fn": 0,
-      "precision": 0.5263157894736842,
+      "precision": 0.975609756097561,
       "recall": 1.0,
-      "f1": 0.6896551724137931
+      "f1": 0.9876543209876543
     },
     "S3_BUCKET_REF": {
-      "tp": 5,
+      "tp": 99,
       "fp": 0,
       "fn": 0,
       "precision": 1.0,
@@ -209,15 +209,15 @@
       "f1": 1.0
     },
     "SWIFT_BIC": {
-      "tp": 15,
-      "fp": 0,
+      "tp": 234,
+      "fp": 24,
       "fn": 0,
-      "precision": 1.0,
+      "precision": 0.9069767441860465,
       "recall": 1.0,
-      "f1": 1.0
+      "f1": 0.951219512195122
     },
     "SWIFT_MT103": {
-      "tp": 10,
+      "tp": 130,
       "fp": 0,
       "fn": 0,
       "precision": 1.0,
@@ -225,27 +225,35 @@
       "f1": 1.0
     },
     "SWIFT_MT202": {
-      "tp": 5,
+      "tp": 59,
       "fp": 0,
       "fn": 0,
       "precision": 1.0,
       "recall": 1.0,
       "f1": 1.0
     },
-    "URL_ENCODED_SECRET": {
-      "tp": 0,
+    "TAX_ID": {
+      "tp": 77,
       "fp": 0,
-      "fn": 10,
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
     }
   },
-  "adversarial_detection_rate": 60.0,
-  "edge_false_positive_rate": 20.0,
+  "adversarial_detection_rate": 95.90818363273453,
+  "edge_false_positive_rate": 0.0,
   "action_distribution": {
-    "log_suspected": 306,
-    "mask_immediate": 269,
-    "mask_warn": 156
+    "mask_immediate": 3724,
+    "mask_warn": 2161,
+    "log_suspected": 380
+  },
+  "ml_safety_net": {
+    "available": true,
+    "flags_total": 123,
+    "masks_applied": 103,
+    "flags_review_only": 20,
+    "flags_true_miss": 123,
+    "flags_false_alarm": 0
   }
 }
