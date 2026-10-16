@@ -52,7 +52,35 @@ async function loadDemoCases() {
   }
 }
 
+function renderMlEntity(entity) {
+  const cls = riskClass(entity.sensitivity);
+  const scorePct = Math.round((entity.score || 0) * 100);
+
+  return `
+    <div class="entity-card ${cls}">
+      <div class="entity-header">
+        <span class="entity-type">${escapeHtml(entity.entity_type)}</span>
+        <span class="layer-tag">Detected by ML (Layer 2)</span>
+        <span class="action-pill ${actionBadgeClass(entity.sensitivity)}">${escapeHtml(entity.action)}</span>
+      </div>
+      <div class="entity-meta">
+        sensitivity ${escapeHtml(entity.sensitivity)} &middot; chars [${entity.start}, ${entity.end})
+      </div>
+      <div class="entity-value">${escapeHtml(entity.value)} &rarr; ${escapeHtml(entity.replacement)}</div>
+      <div class="pattern-row">${escapeHtml(entity.matched_pattern)}</div>
+      <div class="score-row">
+        <div class="score-bar-track">
+          <div class="score-bar-fill" style="width:${scorePct}%; background:currentColor" ></div>
+        </div>
+        <strong>${scorePct}%</strong>
+        <span>ML confidence</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderEntity(entity) {
+  if (entity.layer === 2) return renderMlEntity(entity);
   const cls = riskClass(entity.sensitivity);
   const bd = entity.score_breakdown || {};
   const scorePct = Math.round((entity.score || 0) * 100);
@@ -114,7 +142,7 @@ function renderResults(data) {
     mlBox.classList.remove("hidden");
     mlBox.classList.add("flagged");
     document.getElementById("ml-safety-net-text").textContent =
-      `no rule-based pattern matched, but the trained classifier scored this prompt ${Math.round(mlNet.score * 100)}% likely sensitive by structure/entropy — the suspicious token(s) below were masked as <ML_FLAGGED_...> (see engine/ml_anomaly.py).`;
+      `no rule-based pattern matched, but the trained classifier scored this prompt ${Math.round(mlNet.score * 100)}% likely sensitive by structure/entropy — the suspicious token(s) were masked as <ML_SECRET_N> and are listed below (see engine/ml_anomaly.py).`;
   } else if (mlNet && mlNet.flagged) {
     mlBox.classList.remove("hidden");
     mlBox.classList.add("flagged");

@@ -36,10 +36,12 @@ class TokenRegistry:
         """Call at the start of each new prompt in a session."""
         self._prompt_counter += 1
 
-    def get_or_create_token(self, value: str, entity_type: str) -> str:
+    def get_or_create_token(self, value: str, entity_type: str, label: str = None) -> str:
         """
         Idempotent: if value already has a token, return it.
         Otherwise create a new <TYPE_N> token and register it.
+        `label`, if given, is used verbatim as the token prefix instead of
+        the shortened entity type (e.g. <ML_SECRET_1>).
         """
         if value in self._value_to_token:
             token = self._value_to_token[value]
@@ -53,7 +55,7 @@ class TokenRegistry:
 
         # Build token label: <ENTITY_TYPE_N>
         # Shorten type name for readability
-        short = entity_type.replace("_", "")[:10].upper()
+        short = label or entity_type.replace("_", "")[:10].upper()
         token = f"<{short}_{count}>"
 
         self._value_to_token[value] = token

@@ -182,6 +182,13 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
   gap: 0.5rem;
 }
 .entity-type { font-weight: 700; font-size: 1.02rem; }
+.layer-tag {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--medium);
+  color: var(--medium);
+}
 .entity-value {
   font-family: var(--mono);
   background: rgba(128,128,128,0.15);

@@ -297,20 +297,29 @@ def apply_safety_net(text: str, masked_result, registry=None) -> None:
         })
         return
 
+    # Tokens are assigned left-to-right (so <ML_SECRET_1> is the first span
+    # in the prompt), then substituted right-to-left so earlier offsets stay
+    # valid. start/end index into `text`, which equals masked_text here
+    # because Layer 1 masked nothing.
     masked_text = masked_result.masked_text
-    for start, end in sorted(spans, reverse=True):
+    records = []
+    for start, end in spans:
         original_value = masked_text[start:end]
-        replacement = registry.get_or_create_token(original_value, "ML_FLAGGED_ANOMALY")
-        masked_text = masked_text[:start] + replacement + masked_text[end:]
-        masked_result.masked_entities.append({
+        records.append({
             "entity_type": "ML_FLAGGED_ANOMALY",
             "original"   : original_value,
-            "replacement": replacement,
+            "replacement": registry.get_or_create_token(
+                original_value, "ML_FLAGGED_ANOMALY", label="ML_SECRET"),
             "strategy"   : "tokenize",
             "sensitivity": "MEDIUM",
             "score"      : round(score, 3),
             "action"     : "ml_flagged_mask",
+            "start"      : start,
+            "end"        : end,
         })
+    for rec in reversed(records):
+        masked_text = masked_text[:rec["start"]] + rec["replacement"] + masked_text[rec["end"]:]
+    masked_result.masked_entities.extend(records)
     masked_result.masked_text = masked_text
 
     risk_priority = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}

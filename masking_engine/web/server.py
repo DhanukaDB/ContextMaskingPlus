@@ -94,6 +94,28 @@ def run_pipeline(text: str) -> dict:
             "score_breakdown": s.score_breakdown,
             "confidence_level": s.confidence_level,
             "action": s.action,
+            "layer": 1,
+        })
+
+    # Spans the ML safety net masked are listed alongside Layer-1 entities
+    # so the UI never shows "No sensitive entities detected" for them.
+    for m in masked_result.masked_entities:
+        if m["entity_type"] != "ML_FLAGGED_ANOMALY":
+            continue
+        entities_out.append({
+            "entity_type": m["entity_type"],
+            "value": m["original"],
+            "replacement": m["replacement"],
+            "start": m["start"],
+            "end": m["end"],
+            "category": "ML",
+            "sensitivity": m["sensitivity"],
+            "matched_pattern": "ML classifier + suspicious-span rule (engine/ml_anomaly.py)",
+            "score": m["score"],
+            "score_breakdown": {},
+            "confidence_level": f"{round(m['score'] * 100)}% ML confidence",
+            "action": m["action"],
+            "layer": 2,
         })
     entities_out.sort(key=lambda x: x["start"])
 

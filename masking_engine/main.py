@@ -116,7 +116,15 @@ def print_result(text, norm, scored_entities, masked_result, instruction_payload
             }.get(level, "")
             print(f"  {e.entity_type:<22} {val:<30} {s.score:>6.2f}  "
                   f"{level_col}{level:<10}{C.RESET} {s.action}")
-    else:
+    ml_masked = [m for m in masked_result.masked_entities
+                 if m["entity_type"] == "ML_FLAGGED_ANOMALY"]
+    if ml_masked:
+        print(f"\n  {C.CYAN}[DETECTED BY ML (LAYER 2)]{C.RESET}")
+        for m in ml_masked:
+            val = (m["original"][:27] + "...") if len(m["original"]) > 30 else m["original"]
+            print(f"  {m['entity_type']:<22} {val:<30} {round(m['score'] * 100):>5}%  "
+                  f"ML confidence → {m['replacement']}")
+    elif not scored_entities:
         print(f"\n  {C.GREEN}[NO SENSITIVE ENTITIES DETECTED]{C.RESET}")
 
     # Masking output
